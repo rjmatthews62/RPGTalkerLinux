@@ -49,8 +49,19 @@ class DbusManager:
         objects=self.objects()
         return ((str(path),interfaces) for path, interfaces in objects.items() if
                             "org.bluez.Adapter1" in interfaces.keys())
-        
+    def friendly_names(self):
+        "Get a list of all devices tagged with the friendly name"
+        result={}
+        objects=self.objects()
+        for path,interfaces in self.all_devices():
+            properties=interfaces["org.bluez.Device1"]
+            name=str(properties["Alias"])
+            address=str(properties["Address"])
+            result[name]=address
+        return result
+            
     def printlist(self):
+        "Print detailed list of devices"
         objects = self.manager.GetManagedObjects()
         print("Objects found=",len(objects))
         all_devices=self.all_device_names()
@@ -98,5 +109,5 @@ class DbusManager:
 
 if __name__=="__main__":
     mgr=DbusManager()
-    mgr.printlist()
-    
+##    mgr.printlist()
+    print(mgr.friendly_names())
