@@ -60,15 +60,26 @@ class DbusManager:
             result[name]=address
         return result
             
+    def connect(self, address, uuid):
+        "Connect to a device with address and service uuid"
+        devices=self.all_devices()
+        for path,dev in devices:
+            properties=dev["org.bluez.Device1"]
+            addr=str(properties["Address"])
+            if (addr==address):
+                print("Found ",path)
+                devobj = self.bus.get_object('org.bluez', path)
+                iface = dbus.Interface(devobj,'org.bluez.Device1')
+                ret=iface.Connect()
+                print("Result=",ret)
+                
+            
     def printlist(self):
         "Print detailed list of devices"
         objects = self.manager.GetManagedObjects()
         print("Objects found=",len(objects))
         all_devices=self.all_device_names()
         
-##        for path, interfaces in objects.items():
-##            if "org.bluez.Adapter1" not in interfaces.keys():
-##                continue
         for path, interfaces in self.all_adapters():
             print("[ " + path + " ]")
 
@@ -109,5 +120,4 @@ class DbusManager:
 
 if __name__=="__main__":
     mgr=DbusManager()
-##    mgr.printlist()
-    print(mgr.friendly_names())
+    mgr.printlist()
