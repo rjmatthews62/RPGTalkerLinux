@@ -4,6 +4,7 @@ from tkinter.scrolledtext import *
 from tkinter import messagebox
 import bluetooth
 import queue
+from dbusmgr import *
 
 class RpgTalkerGUI:
     """ TKInter front end for RPG Talker
@@ -12,18 +13,39 @@ class RpgTalkerGUI:
         "win=main window"
         self.win=win
         self.buildframe()
+        self.buildmenu()
         self.input=queue.Queue()
-        win.after(100,self.dostuff)
+        self.mgr=DbusManager()
+        self.populatebt()
+        self.centerwindow()
 
     def buildframe(self):
         self.win.title("RPGTalker GUI")
-        label=Label(self.win,text="Paired Devices").pack(fill="x")
-        self.bluetoothlist=Listbox(self.win).pack(expand=1, fill="both")
-        self.centerwindow()
+        Label(self.win,text="Paired Devices").pack(fill="x")
+        self.bluetoothlist=Listbox(self.win)
+        self.bluetoothlist.pack(expand=1, fill="both")
+
+    def buildmenu(self):
+        self.menubar=Menu(self.win)
+        filemenu=Menu(self.menubar, tearoff=0)
+        filemenu.add_command(label="Exit", command=self.quit)
+        self.menubar.add_cascade(label="File", menu=filemenu)
+        self.win.config(menu=self.menubar)
 
     def button1click(self):
         print("Button 1 clicked")
 
+    def quit(self):
+        self.win.destroy()
+
+    def populatebt(self):
+        "Populate bluetooth list"
+        devlist=self.mgr.friendly_names()
+        self.devices=devlist
+        lb=self.bluetoothlist
+        for name in sorted(devlist.keys()):
+            lb.insert(END,name)
+        
     def dostuff(self):
         print("After called.")
         
