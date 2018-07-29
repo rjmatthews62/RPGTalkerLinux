@@ -1,5 +1,8 @@
-
 import dbus
+
+SERVICE_NAME = "org.bluez"
+ADAPTER_INTERFACE = SERVICE_NAME + ".Adapter1"
+DEVICE_INTERFACE = SERVICE_NAME + ".Device1"
 
 class DbusManager:
     def __init__(self):
@@ -62,6 +65,11 @@ class DbusManager:
             
     def connect(self, address, uuid):
         "Connect to a device with address and service uuid"
+        try:
+            self.find_device(address)
+        except Exception as err:
+            print("Exception=",err)
+            return
         devices=self.all_devices()
         for path,dev in devices:
             properties=dev["org.bluez.Device1"]
@@ -70,10 +78,56 @@ class DbusManager:
                 print("Found ",path)
                 devobj = self.bus.get_object('org.bluez', path)
                 iface = dbus.Interface(devobj,'org.bluez.Device1')
-                ret=iface.Connect()
-                print("Result=",ret)
-                
-            
+                try:
+                    ret=iface.Connect()
+                    print("Result=",ret)
+                except Exception as err:
+                    print("Exception=",err)
+                  
+    def disconnect(self,address):
+        "Disconnect selected bluetooth device."
+        iface=self.find_device(address)
+        print("Disconnecting")
+        iface.Disconnect()
+        print("Disconnect done.")
+        
+    def find_adapter(self,pattern=None):
+        return self.find_adapter_in_objects(self.objects(), pattern)
+
+    def find_adapter_in_objects(self,objects, pattern=None):
+        bus = dbus.SystemBus()
+        for path, ifaces in objects.items():
+            adapter = ifaces.get(ADAPTER_INTERFACE)
+            if adapter is None:
+                continue
+            if not pattern or pattern == adapter["Address"] or \
+                                path.endswith(pattern):
+                obj = bus.get_object(SERVICE_NAME, path)
+                return dbus.Interface(obj, ADAPTER_INTERFACE)
+        raise Exception("Bluetooth adapter not found")
+
+    def find_device(self, device_address, adapter_pattern=None):
+        return self.find_device_in_objects(self.objects(), device_address,
+                                        adapter_pattern)
+
+    def find_device_in_objects(self,objects, device_address, adapter_pattern=None):
+        bus = dbus.SystemBus()
+        path_prefix = ""
+        if adapter_pattern:
+            adapter = find_adapter_in_objects(objects, adapter_pattern)
+            path_prefix = adapter.object_path
+        for path, ifaces in objects.items():
+            device = ifaces.get(DEVICE_INTERFACE)
+            if device is None:
+                continue
+            if (device["Address"] == device_address and
+                            path.startswith(path_prefix)):
+                obj = bus.get_object(SERVICE_NAME, path)
+                return dbus.Interface(obj, DEVICE_INTERFACE)
+
+        raise Exception("Bluetooth device not found")
+
+
     def printlist(self):
         "Print detailed list of devices"
         objects = self.manager.GetManagedObjects()

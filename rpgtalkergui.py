@@ -49,6 +49,7 @@ class RpgTalkerGUI:
         button1=Button(panel1,text="Tick",command=self.button1click).pack(side=LEFT)
         button2=Button(panel1,text="Update",command=self.populatebt).pack(side=LEFT)
         Button(panel1,text="Connect", command=self.connect).pack(side=LEFT)
+        Button(panel1,text="Disconnect", command=self.disconnect).pack(side=LEFT)
         self.bluetoothlist.pack(expand=1, fill="both")
 
     def buildmenu(self):
@@ -89,6 +90,19 @@ class RpgTalkerGUI:
         addr=self.devices[key]
         print("Addr=",addr)
         self.mgr.connect(addr,"110E")
+
+    def disconnect(self):
+        lb=self.bluetoothlist
+        sel=lb.curselection()
+        if len(sel)<1:
+            print("Nothing selected.")
+            return
+        key=lb.get(sel[0])
+        print("Key=",key)
+        addr=self.devices[key]
+        print("Addr=",addr)
+        self.mgr.disconnect(addr)
+        
         
     def dostuff(self):
         print("After called.")
@@ -104,7 +118,10 @@ class RpgTalkerGUI:
         y = (hs-h)/2
         win.geometry('%dx%d+%d+%d' % (w, h, x, y))
 
+print("Starting")
 root=Tk()
+print("Building frame")
 app=RpgTalkerGUI(root)
+print("Main loop")
 root.mainloop()
         
