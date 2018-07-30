@@ -19,6 +19,7 @@ class RpgTalkerGUI:
         self.input=queue.Queue()
         self.mgr=DbusManager()
         self.populatebt()
+        self.win.update_idletasks()
         self.centerwindow()
         self.win.bind("<<QueueThread>>",self.queuehandle)
         self.queue=queue.Queue()
@@ -110,14 +111,15 @@ class RpgTalkerGUI:
     def centerwindow(self):
         "Center window in screen"
         win=self.win
-        ws = win.winfo_screenwidth()/2 # width of the screen (but I have a double screen...)
+        ws = win.winfo_screenwidth()/2  # width of the screen (I have a wide screen)
         hs = win.winfo_screenheight() # height of the screen
         h = win.winfo_reqheight()
         w = win.winfo_reqwidth() 
         x = (ws-w)/2
         y = (hs-h)/2
-        win.geometry('%dx%d+%d+%d' % (w, h, x, y))
-
+        #win.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        print(self.win.geometry(),ws,hs,w,h)
+        
 print("Starting")
 root=Tk()
 print("Building frame")
