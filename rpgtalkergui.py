@@ -13,6 +13,7 @@ import glob
 import os
 from pygame import mixer
 import pulsectl
+import subprocess
 
 class BtDevice:
     "Holder for Bluetooth device info."
@@ -203,12 +204,18 @@ relies on pulseaudio and bluez
             print("Nothing selected.")
             return
         self.busy()
+        mixer.quit()
         try:
             print("Key=",dev)
             print("Addr=",dev.addr)
             self.mgr.connect(dev.addr,"110E")
             self.populatebt()
-            self.setpulse()
+            try:
+                self.setpulse()
+            except:
+                print("See if server needs to start.")
+                subprocess.call(["pulseaudio","--start"])
+                self.setpulse()
         finally:
             self.notbusy()
 
@@ -220,6 +227,7 @@ relies on pulseaudio and bluez
                 if sink.name.startswith("bluez_sink"):
                     print("Setting sink.")
                     pulse.sink_default_set(sink)
+                    break
                     
     def disconnect(self):
         dev=self.bluetoothlist.selected()
@@ -253,4 +261,5 @@ print("Building frame")
 app=RpgTalkerGUI(root)
 print("Main loop")
 root.mainloop()
-        
+print("Done.")
+mixer.quit()        
