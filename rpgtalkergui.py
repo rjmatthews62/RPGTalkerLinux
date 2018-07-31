@@ -52,7 +52,11 @@ class SoundFile:
         
         
 class RpgTalkerGUI:
-    """ TKInter front end for RPG Talker
+    """
+TKInter front end for RPG Talker
+uses pulsectl, dbus, pygamer.
+relies on pulseaudio and bluez
+
     """
     def __init__(self,win):
         "win=main window"
