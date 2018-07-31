@@ -1,5 +1,6 @@
 from tkinter import *
 from tkinter import ttk
+from tkinter import filedialog
 from tkinter.scrolledtext import *
 from tkinter import messagebox
 import bluetooth
@@ -7,20 +8,49 @@ import queue
 from dbusmgr import *
 import threading
 import queue
+from rpgutils import *
+import glob
+import os
+from pygame import mixer
 
 class BtDevice:
     "Holder for Bluetooth device info."
-    def __init__(self,name,addr):
+    def __init__(self,name=None,addr=None):
         self.name=name
         self.addr=addr
         self.connected=False
+        mixer.init()
 
     def __str__(self):
-        result=self.name
+        result=str(self.name)
         if self.connected:
             result+="*"
         return result
-    
+
+    def __eq__(self,y):
+        if type(y) is BtDevice:
+            return self.addr==y.addr
+        return self.addr==str(y)
+    def __repr__(self):
+        return str(self.name)+": "+str(self.addr)
+
+    def copy(self,btdevice):
+        if (type(btdevice) is BtDevice):
+            self.name=btdevice.name
+            self.addr=btdevice.addr
+            self.connected=btdevice.connected
+        
+class SoundFile:
+    "Holder for sound files"
+    def __init__(self,file):
+        self.file=file
+
+    def __str__(self):
+        apath,afile=os.path.split(self.file)
+        aname,ext=os.path.splitext(afile)
+        return str(aname)
+        
+        
 class RpgTalkerGUI:
     """ TKInter front end for RPG Talker
     """
@@ -64,27 +94,82 @@ class RpgTalkerGUI:
         tab1 = Frame(self.panes)
         self.panes.add(tab1,text="Paired Devices")
         
-        self.bluetoothlist=Listbox(tab1)
+        self.bluetoothlist=ListboxObjects(tab1)
         panel1=Frame(tab1)
-        panel1.pack(expand=1, fill="x")
+        panel1.pack(fill=X)
         button1=Button(panel1,text="Tick",command=self.button1click).pack(side=LEFT)
         button2=Button(panel1,text="Update",command=self.populatebt).pack(side=LEFT)
         Button(panel1,text="Connect", command=self.connect).pack(side=LEFT)
         Button(panel1,text="Disconnect", command=self.disconnect).pack(side=LEFT)
         self.bluetoothlist.pack(expand=1, fill="both")
 
+        tab2=Frame(self.panes)
+        self.panes.add(tab2,text="Sounds")
+        panel4=Frame(tab2)
+        panel4.pack(side=TOP, fill=X)
+        button3=Button(panel4,text="Play", command=self.play).pack(side=LEFT)
+        button4=Button(panel4,text="Stop", command=self.stop).pack(side=LEFT)
+        self.soundlist=ListboxObjects(tab2)
+        self.soundlist.pack(expand=1, fill="both")
+
     def buildmenu(self):
         self.menubar=Menu(self.win)
         filemenu=Menu(self.menubar, tearoff=0)
+        filemenu.add_command(label="Sounds", command=self.askSounds)
         filemenu.add_command(label="Exit", command=self.quit)
         self.menubar.add_cascade(label="File", menu=filemenu)
         self.win.config(menu=self.menubar)
+
+    def busy(self):
+        "Set Wait cursor"
+        print("Show busy...")
+        self.win.config(cursor="watch")
+        self.win.update()
+
+    def notbusy(self):
+        "Normal cursor"
+        print("Show normal")
+        self.win.config(cursor="")
 
     def button1click(self):
         print("Button 1 clicked")
         t=threading.Timer(2,self.ontick)
         t.start()
 
+    def askSounds(self):
+        "Ask for sound files."
+        print("sound files here")
+        myfolder=filedialog.askdirectory(initialdir="~/Music",title = "Select Sound Folder")
+        print(myfolder,type(myfolder))
+        if (len(myfolder)>0):
+            self.loadSounds(myfolder)
+        
+    def loadSounds(self,folder):
+        lb=self.soundlist
+        lb.delete(0,END)
+        mylist=[]
+        for f in glob.iglob(folder+"/*.mp3"):
+            ff=SoundFile(f)
+            mylist.append(ff)
+        mylist.sort(key=str)
+        for sf in mylist:
+            lb.insert(END,sf)
+
+    def play(self):
+        "Play music"
+        sf=self.soundlist.selected()
+        if (sf==None):
+            return
+        print("Loading ",sf.file)
+        mixer.music.load(sf.file)
+        print("playing")
+        mixer.music.play()
+
+    
+    def stop(self):
+        "Stop Music"
+        mixer.music.stop()
+    
     def ontick(self):
         self.sendqueue("print","This is a queued message from ontick")
         
@@ -93,41 +178,45 @@ class RpgTalkerGUI:
 
     def populatebt(self):
         "Populate bluetooth list"
-        devlist=self.mgr.friendly_names()
         self.devices=self.mgr.device_properties()
+        devlist=self.mgr.friendly_names()
         lb=self.bluetoothlist
+        orig=self.bluetoothlist.selected()
         lb.delete(0,END)
-        self.devindex=[]
         for name in sorted(devlist.keys()):
             dev=BtDevice(name,devlist[name])
             prop=self.devices[dev.addr]
             dev.connected=(prop['Connected']==1)
             lb.insert(END,dev)
-            self.devindex.append(dev)
+        if (orig!=None):
+            lb.selectObject(orig)
         
-    def getselected(self):
-        lb=self.bluetoothlist
-        sel=lb.curselection()
-        if len(sel)<1:
-            return None
-        return self.devindex[sel[0]]
-    
     def connect(self):
-        dev=self.getselected()
+        dev=self.bluetoothlist.selected()
         if dev==None:
             print("Nothing selected.")
             return
-        print("Key=",dev)
-        print("Addr=",dev.addr)
-        self.mgr.connect(dev.addr,"110E")
+        self.busy()
+        try:
+            print("Key=",dev)
+            print("Addr=",dev.addr)
+            self.mgr.connect(dev.addr,"110E")
+            self.populatebt()
+        finally:
+            self.notbusy()
 
     def disconnect(self):
-        dev=self.getselected()
+        dev=self.bluetoothlist.selected()
         if dev==None:
             print("Nothing selected.")
             return
-        self.mgr.disconnect(dev.addr)
-        
+        self.busy()
+        try:
+            self.mgr.disconnect(dev.addr)
+            self.populatebt()
+        finally:
+            self.notbusy()
+            
     def dostuff(self):
         print("After called.")
         
