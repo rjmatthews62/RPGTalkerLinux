@@ -2,8 +2,11 @@ from tkinter import *
 
 class ListboxObjects(Listbox):
     "Listbox with objects"
-    self.objectlist=[]
 
+    def __init__(self, master=None, **options):
+        super().__init__(master,options)
+        self.objectlist=[]
+       
     def insert(self, index, *elements):
         for obj in elements:
             super().insert(index,str(obj))

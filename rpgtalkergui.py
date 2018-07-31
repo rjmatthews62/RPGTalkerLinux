@@ -12,6 +12,7 @@ from rpgutils import *
 import glob
 import os
 from pygame import mixer
+import pulsectl
 
 class BtDevice:
     "Holder for Bluetooth device info."
@@ -19,7 +20,6 @@ class BtDevice:
         self.name=name
         self.addr=addr
         self.connected=False
-        mixer.init()
 
     def __str__(self):
         result=str(self.name)
@@ -160,6 +160,8 @@ class RpgTalkerGUI:
         sf=self.soundlist.selected()
         if (sf==None):
             return
+        mixer.quit()
+        mixer.init()
         print("Loading ",sf.file)
         mixer.music.load(sf.file)
         print("playing")
@@ -202,9 +204,19 @@ class RpgTalkerGUI:
             print("Addr=",dev.addr)
             self.mgr.connect(dev.addr,"110E")
             self.populatebt()
+            self.setpulse()
         finally:
             self.notbusy()
 
+    def setpulse(self):
+        with pulsectl.Pulse("Testing") as pulse:
+            for sink in pulse.sink_list():
+                print(sink)
+                print(sink.index,sink.name)
+                if sink.name.startswith("bluez_sink"):
+                    print("Setting sink.")
+                    pulse.sink_default_set(sink)
+                    
     def disconnect(self):
         dev=self.bluetoothlist.selected()
         if dev==None:
