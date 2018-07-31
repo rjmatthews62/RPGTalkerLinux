@@ -8,6 +8,19 @@ from dbusmgr import *
 import threading
 import queue
 
+class BtDevice:
+    "Holder for Bluetooth device info."
+    def __init__(self,name,addr):
+        self.name=name
+        self.addr=addr
+        self.connected=False
+
+    def __str__(self):
+        result=self.name
+        if self.connected:
+            result+="*"
+        return result
+    
 class RpgTalkerGUI:
     """ TKInter front end for RPG Talker
     """
@@ -18,6 +31,8 @@ class RpgTalkerGUI:
         self.buildmenu()
         self.input=queue.Queue()
         self.mgr=DbusManager()
+        self.device={}
+        self.devindex=[]
         self.populatebt()
         self.win.update_idletasks()
         self.centerwindow()
@@ -43,9 +58,14 @@ class RpgTalkerGUI:
     
     def buildframe(self):
         self.win.title("RPGTalker GUI")
-        Label(self.win,text="Paired Devices").pack(fill="x")
-        self.bluetoothlist=Listbox(self.win)
-        panel1=Frame(self.win)
+        self.panes = ttk.Notebook(self.win)
+        self.panes.pack(expand=1, fill="both")
+
+        tab1 = Frame(self.panes)
+        self.panes.add(tab1,text="Paired Devices")
+        
+        self.bluetoothlist=Listbox(tab1)
+        panel1=Frame(tab1)
         panel1.pack(expand=1, fill="x")
         button1=Button(panel1,text="Tick",command=self.button1click).pack(side=LEFT)
         button2=Button(panel1,text="Update",command=self.populatebt).pack(side=LEFT)
@@ -74,36 +94,39 @@ class RpgTalkerGUI:
     def populatebt(self):
         "Populate bluetooth list"
         devlist=self.mgr.friendly_names()
-        self.devices=devlist
+        self.devices=self.mgr.device_properties()
         lb=self.bluetoothlist
         lb.delete(0,END)
+        self.devindex=[]
         for name in sorted(devlist.keys()):
-            lb.insert(END,name)
+            dev=BtDevice(name,devlist[name])
+            prop=self.devices[dev.addr]
+            dev.connected=(prop['Connected']==1)
+            lb.insert(END,dev)
+            self.devindex.append(dev)
         
-    def connect(self):
+    def getselected(self):
         lb=self.bluetoothlist
         sel=lb.curselection()
         if len(sel)<1:
+            return None
+        return self.devindex[sel[0]]
+    
+    def connect(self):
+        dev=self.getselected()
+        if dev==None:
             print("Nothing selected.")
             return
-        key=lb.get(sel[0])
-        print("Key=",key)
-        addr=self.devices[key]
-        print("Addr=",addr)
-        self.mgr.connect(addr,"110E")
+        print("Key=",dev)
+        print("Addr=",dev.addr)
+        self.mgr.connect(dev.addr,"110E")
 
     def disconnect(self):
-        lb=self.bluetoothlist
-        sel=lb.curselection()
-        if len(sel)<1:
+        dev=self.getselected()
+        if dev==None:
             print("Nothing selected.")
             return
-        key=lb.get(sel[0])
-        print("Key=",key)
-        addr=self.devices[key]
-        print("Addr=",addr)
-        self.mgr.disconnect(addr)
-        
+        self.mgr.disconnect(dev.addr)
         
     def dostuff(self):
         print("After called.")
@@ -111,14 +134,13 @@ class RpgTalkerGUI:
     def centerwindow(self):
         "Center window in screen"
         win=self.win
-        ws = win.winfo_screenwidth()/2  # width of the screen (I have a wide screen)
+        ws = win.winfo_screenwidth()  # width of the screen (I have a wide screen)
         hs = win.winfo_screenheight() # height of the screen
         h = win.winfo_reqheight()
         w = win.winfo_reqwidth() 
         x = (ws-w)/2
         y = (hs-h)/2
-        #win.geometry('%dx%d+%d+%d' % (w, h, x, y))
-        print(self.win.geometry(),ws,hs,w,h)
+        win.geometry('%dx%d+%d+%d' % (w, h, x, y))
         
 print("Starting")
 root=Tk()

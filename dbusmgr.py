@@ -63,6 +63,14 @@ class DbusManager:
             result[name]=address
         return result
             
+    def device_properties(self):
+        "Return list of properties for all BT devices"
+        result={}
+        for path,interfaces in self.all_devices():
+            properties=interfaces["org.bluez.Device1"]
+            result[properties["Address"]]=properties
+        return result
+                   
     def connect(self, address, uuid):
         "Connect to a device with address and service uuid"
         try:
