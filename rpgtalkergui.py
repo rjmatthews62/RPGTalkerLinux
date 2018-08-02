@@ -14,6 +14,7 @@ import os
 from pygame import mixer
 ## import pulsectl
 import pulsemgr
+import configparser
 
 import subprocess
 
@@ -75,6 +76,11 @@ relies on pulseaudio and bluez
         self.centerwindow()
         self.win.bind("<<QueueThread>>",self.queuehandle)
         self.queue=queue.Queue()
+        self.config=configparser.ConfigParser()
+        self.loadconfig()
+        if self.config.has_option('Music','Folder'):
+            self.loadSounds(self.config.get('Music','Folder'))
+
 
     def queuehandle(self, evt):
         """
@@ -150,6 +156,8 @@ relies on pulseaudio and bluez
         print(myfolder,type(myfolder))
         if (len(myfolder)>0):
             self.loadSounds(myfolder)
+            self.setconfig("Music","Folder",myfolder)
+            self.saveconfig()
         
     def loadSounds(self,folder):
         lb=self.soundlist
@@ -167,13 +175,16 @@ relies on pulseaudio and bluez
         sf=self.soundlist.selected()
         if (sf==None):
             return
-        mixer.quit()
-        mixer.init()
-        print("Loading ",sf.file)
-        mixer.music.load(sf.file)
-        print("playing")
-        mixer.music.play()
-
+        self.busy()
+        try:
+            mixer.quit()
+            mixer.init()
+            print("Loading ",sf.file)
+            mixer.music.load(sf.file)
+            print("playing")
+            mixer.music.play()
+        finally:
+            self.notbusy()
     
     def stop(self):
         "Stop Music"
@@ -256,6 +267,21 @@ relies on pulseaudio and bluez
         x = (ws-w)/2
         y = (hs-h)/2
         win.geometry('%dx%d+%d+%d' % (w, h, x, y))
+    
+    def setconfig(self,section,key,value):
+        if not(self.config.has_section(section)):
+               self.config.add_section(section)
+        self.config.set(section,key,str(value))
+               
+    def loadconfig(self):
+        try:
+            self.config.read("rpgtalker.ini")
+        except:
+            pass
+
+    def saveconfig(self):
+        with open("rpgtalker.ini","w") as output:
+            self.config.write(output)
         
 print("Starting")
 root=Tk()
