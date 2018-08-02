@@ -3,7 +3,7 @@ from tkinter import ttk
 from tkinter import filedialog
 from tkinter.scrolledtext import *
 from tkinter import messagebox
-import bluetooth
+# import bluetooth
 import queue
 from dbusmgr import *
 import threading
@@ -12,7 +12,9 @@ from rpgutils import *
 import glob
 import os
 from pygame import mixer
-import pulsectl
+## import pulsectl
+import pulsemgr
+
 import subprocess
 
 class BtDevice:
@@ -210,25 +212,25 @@ relies on pulseaudio and bluez
             print("Addr=",dev.addr)
             self.mgr.connect(dev.addr,"110E")
             self.populatebt()
-            try:
-                self.setpulse()
-            except:
-                print("See if server needs to start.")
-                subprocess.call(["pulseaudio","--start"])
-                self.setpulse()
+            self.setpulse(dev.addr)
         finally:
             self.notbusy()
 
-    def setpulse(self):
-        with pulsectl.Pulse("Testing") as pulse:
-            for sink in pulse.sink_list():
-                print(sink)
-                print(sink.index,sink.name)
-                if sink.name.startswith("bluez_sink"):
-                    print("Setting sink.")
-                    pulse.sink_default_set(sink)
-                    break
-                    
+##    def setpulse(self):
+##        with pulsectl.Pulse("Testing") as pulse:
+##            for sink in pulse.sink_list():
+##                print(sink)
+##                print(sink.index,sink.name)
+##                if sink.name.startswith("bluez_sink"):
+##                    print("Setting sink.")
+##                    pulse.sink_default_set(sink)
+              
+
+    def setpulse(self,addr):
+        "Uses command line as pulsectl libs not working under Mintos"
+        pm=pulsemgr.PulseManager(True)
+        pm.set_bluetooth(addr)
+        
     def disconnect(self):
         dev=self.bluetoothlist.selected()
         if dev==None:
