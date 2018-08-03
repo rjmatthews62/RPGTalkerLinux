@@ -12,9 +12,10 @@ from rpgutils import *
 import glob
 import os
 from pygame import mixer
-## import pulsectl
+import pulsectl
 import pulsemgr
 import configparser
+import time
 
 import subprocess
 
@@ -217,30 +218,45 @@ relies on pulseaudio and bluez
             print("Nothing selected.")
             return
         self.busy()
-        mixer.quit()
         try:
+            mixer.quit()
+            if not dev.connected:
+                self.disconnect_all()
             print("Key=",dev)
             print("Addr=",dev.addr)
-            self.mgr.connect(dev.addr,"110E")
-            self.populatebt()
-            self.setpulse(dev.addr)
+            rpt=0
+            while rpt<3:
+                self.mgr.connect(dev.addr,"110E")
+                self.populatebt()
+                if self.setpulse(dev.addr): break
+                rpt += 1
+                time.sleep(2)
         finally:
             self.notbusy()
 
-##    def setpulse(self):
-##        with pulsectl.Pulse("Testing") as pulse:
-##            for sink in pulse.sink_list():
-##                print(sink)
-##                print(sink.index,sink.name)
-##                if sink.name.startswith("bluez_sink"):
-##                    print("Setting sink.")
-##                    pulse.sink_default_set(sink)
+    def disconnect_all(self):
+        lb=self.bluetoothlist
+        for dev in lb.objectlist:
+            if (dev.connected):
+                self.mgr.disconnect(dev.addr)
+                
+    def setpulse(self,addr):
+        match="bluez_sink."+addr.upper().replace(":","_")
+        with pulsectl.Pulse("RPGTalker") as pulse:
+            for sink in pulse.sink_list():
+                print(sink)
+                print(sink.index,sink.name)
+                if sink.name.startswith(match):
+                    print("Setting sink.")
+                    pulse.sink_default_set(sink)
+                    return True
+        return False
               
 
-    def setpulse(self,addr):
-        "Uses command line as pulsectl libs not working under Mintos"
-        pm=pulsemgr.PulseManager(True)
-        pm.set_bluetooth(addr)
+##    def setpulse(self,addr):
+##        "Uses command line as pulsectl libs not working under Mintos"
+##        pm=pulsemgr.PulseManager(True)
+##        pm.set_bluetooth(addr)
         
     def disconnect(self):
         dev=self.bluetoothlist.selected()
